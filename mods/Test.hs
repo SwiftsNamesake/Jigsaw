@@ -5,7 +5,7 @@ import Data.Char
 
 
 transform :: String -> String
-transform = (++ " That's right!") . (++ "!") . map toUpper
+transform = (++ " is actually really offensive") . (++ "'") . ("'" ++)
 
 
 print :: String -> IO ()
