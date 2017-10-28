@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Plugins
+  exposed-modules:     Jigsaw.Load
   build-depends:       base >= 4.7 && < 5
                      , ghc == 7.10.3
                      , ghc-paths

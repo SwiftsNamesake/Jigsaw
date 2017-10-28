@@ -1,5 +1,5 @@
 -- |
--- Module      : Plugins
+-- Module      : Jigsaw.Load
 -- Description : 
 -- Copyright   : (c) Jonatan Sundqvist, 2016
 -- License     : MIT
@@ -17,7 +17,7 @@
 
 -- API -------------------------------------------------------------------------
 
-module Plugins where
+module Jigsaw.Load where
 
 -- We'll need these ------------------------------------------------------------
 
@@ -43,7 +43,13 @@ import Unsafe.Coerce
 -- |
 -- TODO | - Safety
 --        - Dependencies
+--        - Introspection
+--        - Evaluating expressions
+--        - Performance
+--        - Simplify the interface (eg. remove 'modname' and possibly 'symbols')
 --        - Refactor
+--        - Logging, recovery
+--        - Sandboxing (SafeHaskell, TH, unsafePerformIO, memory and timeout, etc.)
 --        - Probably lots of other things I haven't thought of yet
 load :: String -> String -> [String] -> EitherT PluginError IO DynamicModule
 load fn modname symbols = EitherT . onError . runGhc (Just libdir) $ do

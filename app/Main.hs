@@ -24,18 +24,26 @@ import Control.Monad.Trans.Either
 import Control.Monad.IO.Class
 import Data.Functor ((<$>))
 import Data.Dynamic
-import Data.Map as M
+import Data.Monoid
 
-import Plugins
+import System.IO
+
+import Jigsaw.Load as Jigsaw
 
 -- Definitions -----------------------------------------------------------------
 
 -- |
 loadRun :: EitherT PluginError IO [String -> String]
-loadRun = Plugins.load "./mods/Test.hs" "Test" ["transforms"] >>= \m -> EitherT . return $ lookupSymbol m "transforms"
+loadRun = Jigsaw.load "./mods/Test.hs" "Test" ["transforms"] >>= \m -> EitherT . return $ lookupSymbol m "transforms"
+
+-- |
+prompt :: String -> IO String
+prompt s = putStr s *> hFlush stdout *> getLine
 
 -- |
 main :: IO ()
 main = do
-  ln <- getLine
-  (either (show) (unlines . fmap ($ ln)) <$> runEitherT loadRun) >>= putStrLn
+  ln <- prompt "Say something: "
+  either show (run ln) <$> runEitherT loadRun >>= putStrLn
+  where
+    run ln = unlines . zipWith (\n f -> "(" <> show n <> ") " <> f ln) [1..]
