@@ -1,7 +1,7 @@
 -- |
 -- Module      : Plugins
 -- Description : 
--- Copyright   : (c) Jonatan Sundqvist, year
+-- Copyright   : (c) Jonatan Sundqvist, 2016
 -- License     : MIT
 -- Maintainer  : Jonatan Sundqvist
 -- Stability   : $
@@ -12,6 +12,8 @@
 --        - 
 
 -- GHC Pragmas -----------------------------------------------------------------
+
+{-# LANGUAGE TupleSections #-}
 
 -- API -------------------------------------------------------------------------
 
@@ -24,7 +26,12 @@ import Data.Monoid ((<>))
 import Data.Functor ((<$>))
 import Data.Dynamic
 import Data.Typeable
-import qualified Data.Map.Strict as M
+import Data.Functor ((<$>))
+import qualified Data.Map.Strict as Map
+import           Data.Map.Strict (Map)
+
+import Control.Monad.Trans.Either
+import Control.Monad.IO.Class
 
 import GHC
 import GHC.Paths
@@ -35,20 +42,36 @@ import Unsafe.Coerce
 
 -- |
 -- TODO | - Safety
+--        - Dependencies
+--        - Refactor
 --        - Probably lots of other things I haven't thought of yet
-load :: String -> String -> [String] -> IO (Either PluginError (M.Map String Dynamic))
-load fn modname symbols = defaultErrorHandler putStrLn (FlushOut $ putStrLn "Something went awry. Flushing out.") $ do
-  runGhc (Just libdir) $ do
-    dflags <- getSessionDynFlags
-    setSessionDynFlags dflags
-    target <- guessTarget fn Nothing
-    addTarget target
-    r <- GHC.load LoadAllTargets
-    case r of
-      Failed    -> return $ Left LoadFailure
-      Succeeded -> do
-        setContext [IIDecl $ simpleImportDecl (mkModuleName modname)]
-        (Right . M.fromList . zip symbols) <$> mapM (\s -> dynCompileExpr $ modname <> "." <> s) symbols -- A list of 'dynamic imports'
+load :: String -> String -> [String] -> EitherT PluginError IO DynamicModule
+load fn modname symbols = EitherT . onError . runGhc (Just libdir) $ do
+  dflags <- getSessionDynFlags
+  setSessionDynFlags $ addReloadFlags dflags
+  target <- guessTarget fn Nothing
+  addTarget target
+  outcome <- GHC.load LoadAllTargets
+  case outcome of
+    Failed    -> return $ Left LoadFailure
+    Succeeded -> do
+      setContext [IIDecl $ simpleImportDecl (mkModuleName modname)]
+      Right . Map.fromList <$> mapM compileSymbol symbols
+  where
+    onError = defaultErrorHandler putStrLn (FlushOut $ putStrLn "Something went awry. Flushing out.")
+    makeName s =  modname <> "." <> s
+    compileSymbol s = (s,) <$> (dynCompileExpr $ makeName s)
+    addReloadFlags fs = fs { ghcLink      = LinkInMemory,
+                             hscTarget    = HscInterpreted,
+                             packageFlags = [ExposePackage (PackageArg "ghc") (ModRenaming True [])] }
+
+-- |
+explain :: a -> Maybe b -> Either a b
+explain a = maybe (Left a) Right
+
+-- |
+lookupSymbol :: Typeable a => DynamicModule -> String -> Either PluginError a
+lookupSymbol mod symbol = explain LookupFailure (Map.lookup symbol mod >>= fromDynamic)
 
 -- Types -----------------------------------------------------------------------
 
@@ -57,6 +80,9 @@ data Plugin a = Plugin { run :: a } deriving Show
 
 -- |
 data PluginError = LoadFailure | LookupFailure deriving Show
+
+-- |
+type DynamicModule = Map String Dynamic
 
 -- Functions -------------------------------------------------------------------
 

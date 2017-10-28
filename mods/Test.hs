@@ -3,9 +3,11 @@ module Test where
 
 import Data.Char
 
-
-transform :: String -> String
-transform = (++ " is actually really offensive") . (++ "'") . ("'" ++)
+transforms :: [String -> String]
+transforms = [(++ " is actually really offensive") . (++ "'") . ("'" ++)
+             ,(++ " is a blatant lie!")
+             ,(transforms !! 1) . fmap toUpper
+             ,(++ "?")]
 
 
 print :: String -> IO ()

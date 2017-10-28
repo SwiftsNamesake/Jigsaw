@@ -1,4 +1,4 @@
-Copyright Author name here (c) 2016
+Copyright Jonatan Sundqvist (c) 2016
 
 All rights reserved.
 
